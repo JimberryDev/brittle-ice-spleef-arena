@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <title>Litemapy test</title>
+</head>
+
+<body>
+    <button id="run">Run test</button>
+    <pre id="result"></pre>
+
+    <script src="https://cdn.jsdelivr.net/pyodide/v314.0.7/full/pyodide.js"></script>
+    <script type="module">
+        // Find the button and output area
+        const button = document.querySelector('#run');
+        const result = document.querySelector('#result');
+
+        button.onclick = async () => {
+            button.disabled = true;
+            result.textContent = 'Loading Python and Litemapy…';
+
+            try {
+                // Start Python and load its package installer
+                const python = await loadPyodide();
+                await python.loadPackage(['numpy', 'micropip']);
+
+                // Install Litemapy inside the browser
+                await python.runPythonAsync(`
+import micropip
+await micropip.install("litemapy==0.11.0b0")
+      `);
+
+                // Load our Python functions from the separate file
+                const response = await fetch('./generator.py');
+                if (!response.ok) throw new Error('Could not load generator.py');
+                await python.runPythonAsync(await response.text());
+
+                // Create, save and reopen the sample schematic
+                result.textContent = python.runPython('round_trip()');
+            } catch (error) {
+                // Show failures where we can read them
+                result.textContent = String(error);
+            }
+        };
+    </script>
+</body>
+
+</html>

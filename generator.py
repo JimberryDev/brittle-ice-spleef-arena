@@ -1,4 +1,5 @@
 from copy import deepcopy
+from pathlib import Path
 
 from litemapy import Region, Schematic
 
@@ -114,11 +115,20 @@ def gen_schem(width_tiles: int, height_layers: int, length_tiles: int):
             )
 
     out_schem = Schematic(
-        name="Brittle ice spleef arena",
+        name="Brittle ice Spleef Arena by JimberryDev",
         regions=output,
         mc_version=in_schem.mc_version,
     )
-    out_schem.save("generated.litematic")
+    
+    # Save
+    Path("build").mkdir(exist_ok=True)
+    output_path = (
+        f"build/Brittle ice Spleef Arena "
+        f"{out_schem.width} x {out_schem.height} x {out_schem.length} "
+        "by JimberryDev.litematic"
+    )
+    out_schem.save(output_path)
+    return output_path
 
 
 def copy_offset(
@@ -138,4 +148,4 @@ def copy_offset(
 
 
 if __name__ == "__main__":
-    gen_schem(15, 15, 15)
+    gen_schem(3, 3, 3)

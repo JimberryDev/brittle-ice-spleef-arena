@@ -172,13 +172,13 @@
                         <span class="unit">blocks</span>
                     </div>
                     <div class="dimension">
-                        <label for="length">Length (cheap side)</label>
-                        <input id="length" type="number" min="32" step="10" value="42">
+                        <label for="height">Height</label>
+                        <input id="height" type="number" min="11" step="7" value="11">
                         <span class="unit">blocks</span>
                     </div>
                     <div class="dimension">
-                        <label for="height">Height</label>
-                        <input id="height" type="number" min="11" step="7" value="11">
+                        <label for="length">Length (cheap side)</label>
+                        <input id="length" type="number" min="31" step="9" value="40">
                         <span class="unit">blocks</span>
                     </div>
                 </div>
@@ -186,12 +186,13 @@
 
             <!-- Show the closest dimensions without changing the requested values -->
             <section class="preview" aria-label="Closest available size" aria-live="polite">
-                <p>Closest available size:</p>
+                <p>Closest available size (width × height × length):</p>
                 <p class="size">— × — × — blocks</p>
                 <p id="size-details" class="muted"></p>
             </section>
 
-            <button disabled>Download schematic</button>
+            <button id="download">Download schematic</button>
+            <p id="status" class="muted" role="status"></p>
 
         </main>
 
@@ -205,10 +206,33 @@
     </div>
 
     <script type="module">
-        // Read the sizing rules directly from the inputs
-        const inputs = ['width', 'length', 'height'].map(id => document.getElementById(id));
+        // Keep the fixed dimensions and tile increments together
+        const wBase = 11, wSlice = 7;
+        const lBase = 22, lSlice = 9;
+        const hBase = 2 + 2, hSlice = 7; // Include the vertical overlap allowance
+
+        // Find the controls and track whether generation can start
+        const inputs = ['width', 'height', 'length'].map(id => document.getElementById(id));
         const preview = document.querySelector('.size');
         const details = document.getElementById('size-details');
+        const download = document.getElementById('download');
+        const status = document.getElementById('status');
+        let ready = false;
+        let failed = false;
+        let busy = false;
+        let pendingRequest = null;
+        let tileCounts = null;
+
+        // Derive input limits from one tile in each direction
+        const rules = [[wBase, wSlice], [hBase, hSlice], [lBase, lSlice]];
+        inputs.forEach((input, i) => {
+            input.min = rules[i][0] + rules[i][1];
+            input.step = rules[i][1];
+        });
+
+        function updateButton() {
+            download.disabled = failed || busy || !tileCounts;
+        }
 
         // Round to whole tiles, keeping at least the minimum size
         function closestSize(requested, minimum, step) {
@@ -221,6 +245,9 @@
             if (inputs.some(input => !Number.isFinite(input.valueAsNumber))) {
                 preview.textContent = '— × — × — blocks';
                 details.textContent = '';
+                tileCounts = null;
+                download.textContent = 'Download schematic';
+                updateButton();
                 return;
             }
 
@@ -230,15 +257,83 @@
             ));
             preview.textContent = `${sizes.join(' × ')} blocks`;
 
-            // Count slices above the fixed width and include the first height layer
-            const slices = (sizes[0] - 11) / 7;
-            const layers = 1 + (sizes[2] - 11) / 7;
-            details.textContent = `${slices} ice maker ${slices === 1 ? 'slice' : 'slices'} · ${sizes[1]} armor stands · ${layers} ${layers === 1 ? 'layer' : 'layers'}`;
+            // Convert the rounded outer dimensions into Python's tile counts
+            const slices = (sizes[0] - wBase) / wSlice;
+            const layers = (sizes[1] - hBase) / hSlice;
+            tileCounts = {
+                widthTiles: slices,
+                heightLayers: layers,
+                lengthTiles: (sizes[2] - lBase) / lSlice,
+            };
+            details.textContent = `${slices} ice maker ${slices === 1 ? 'slice' : 'slices'} · ${layers} ${layers === 1 ? 'layer' : 'layers'} · ${sizes[2] - lBase} armor stands`;
+            download.textContent = `Download ${sizes.join(' × ')} schematic`;
+            updateButton();
         }
 
         // Refresh on typing and arrow clicks, and show the starting size on load
         inputs.forEach(input => input.addEventListener('input', updatePreview));
         updatePreview();
+
+        // Keep Python generation off the page's main thread
+        const worker = new Worker('./generator-worker.js', { type: 'module' });
+        download.onclick = () => {
+            if (failed || busy || !tileCounts) return;
+            busy = true;
+            inputs.forEach(input => { input.disabled = true; });
+            updateButton();
+            status.textContent = 'Generating schematic…';
+            // Hold an early click until Python finishes loading
+            if (ready) worker.postMessage(tileCounts);
+            else pendingRequest = { ...tileCounts };
+        };
+
+        // Restore the controls after generation succeeds or fails
+        function finish() {
+            busy = false;
+            inputs.forEach(input => { input.disabled = false; });
+            updateButton();
+        }
+
+        worker.onmessage = ({ data }) => {
+            if (data.type === 'ready') {
+                ready = true;
+                // Send the waiting request without exposing the startup phase
+                if (pendingRequest) {
+                    worker.postMessage(pendingRequest);
+                    pendingRequest = null;
+                }
+                updateButton();
+            } else if (data.type === 'error') {
+                if (!ready) failed = true;
+                pendingRequest = null;
+                status.textContent = data.message;
+                finish();
+            } else if (data.type === 'complete') {
+                // Wrap the returned bytes in a downloadable browser file
+                const blob = new Blob([data.bytes], { type: 'application/octet-stream' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = data.filename;
+                document.body.append(link);
+                link.click();
+                link.remove();
+
+                // Release the temporary URL after starting the download
+                setTimeout(() => URL.revokeObjectURL(url), 60_000);
+                status.textContent = 'Schematic generated';
+                finish();
+            }
+        };
+
+        // Report failures that prevent the worker itself from running
+        worker.onerror = () => {
+            ready = false;
+            failed = true;
+            pendingRequest = null;
+            status.textContent = 'Generator could not start. Reload the page to try again.';
+            finish();
+        };
     </script>
 
 </body>

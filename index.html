@@ -168,12 +168,12 @@
                 <div class="dimensions">
                     <div class="dimension">
                         <label for="width">Width</label>
-                        <input id="width" type="number" min="11" step="7" value="25">
+                        <input id="width" type="number" min="18" step="7" value="25">
                         <span class="unit">blocks</span>
                     </div>
                     <div class="dimension">
                         <label for="length">Length (cheap side)</label>
-                        <input id="length" type="number" min="22" step="10" value="42">
+                        <input id="length" type="number" min="32" step="10" value="42">
                         <span class="unit">blocks</span>
                     </div>
                     <div class="dimension">
@@ -229,7 +229,11 @@
                 input.valueAsNumber, Number(input.min), Number(input.step)
             ));
             preview.textContent = `${sizes.join(' × ')} blocks`;
-            details.textContent = `Width ${sizes[0]} · Length ${sizes[1]} · Height ${sizes[2]}`;
+
+            // Count slices above the fixed width and include the first height layer
+            const slices = (sizes[0] - 11) / 7;
+            const layers = 1 + (sizes[2] - 11) / 7;
+            details.textContent = `${slices} ice maker ${slices === 1 ? 'slice' : 'slices'} · ${sizes[1]} armor stands · ${layers} ${layers === 1 ? 'layer' : 'layers'}`;
         }
 
         // Refresh on typing and arrow clicks, and show the starting size on load

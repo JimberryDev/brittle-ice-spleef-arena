@@ -114,12 +114,21 @@ def gen_schem(width_tiles: int, height_layers: int, length_tiles: int):
                 y_layers=-layer,
             )
 
+    output["arena_center"] = Region(
+        3,
+        -1,
+        -3,
+        width_tiles * W_SLICE,
+        -height_layers * H_SLICE,
+        -length_tiles * L_SLICE,
+    )
+
     out_schem = Schematic(
         name="Brittle ice Spleef Arena by JimberryDev",
         regions=output,
         mc_version=in_schem.mc_version,
     )
-    
+
     # Save
     Path("build").mkdir(exist_ok=True)
     output_path = (

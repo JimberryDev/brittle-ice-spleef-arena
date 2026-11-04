@@ -129,13 +129,15 @@ def gen_schem(width_tiles: int, height_layers: int, length_tiles: int):
         mc_version=in_schem.mc_version,
     )
 
-    # Save
-    Path("build").mkdir(exist_ok=True)
-    output_path = (
+    out_schem.name = (
         f"build/Brittle ice Spleef Arena "
         f"{out_schem.width} x {out_schem.height} x {out_schem.length} "
-        "by JimberryDev.litematic"
+        "by JimberryDev"
     )
+
+    # Save
+    Path("build").mkdir(exist_ok=True)
+    output_path = out_schem.name + ".litematic"
     out_schem.save(output_path)
     return output_path
 

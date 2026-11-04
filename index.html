@@ -3,47 +3,240 @@
 
 <head>
     <meta charset="utf-8">
-    <title>Litemapy test</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Brittle ice spleef arena</title>
+
+    <style>
+        /* Set the icy palette and center the card */
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: grid;
+            place-items: center;
+            padding: 32px 16px;
+            background: #262B40;
+            color: #EEF7FF;
+            font: 16px/1.6 system-ui, sans-serif;
+        }
+
+        /* Place the video beside the card on wider screens */
+        .layout {
+            width: 100%;
+            max-width: 1120px;
+            display: grid;
+            grid-template-columns: minmax(0, 480px) minmax(0, 1fr);
+            gap: 32px;
+            align-items: center;
+        }
+
+        /* Match the video frame to the icy card */
+        iframe {
+            display: block;
+            width: 100%;
+            aspect-ratio: 16 / 9;
+            min-height: 200px;
+            border: 1px solid #52617A;
+            border-radius: 16px;
+            background: #222A3D;
+        }
+
+        /* Stack the video below the card on smaller screens */
+        @media (max-width: 850px) {
+            .layout {
+                max-width: 480px;
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Give the card a quiet border and soft shadow */
+        main {
+            width: 100%;
+            max-width: 480px;
+            padding: clamp(24px, 6vw, 40px);
+            background: #303951;
+            border: 1px solid #52617A;
+            border-radius: 20px;
+            box-shadow: 0 24px 64px #11182740;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 36px;
+            font-weight: 700;
+            line-height: 1.15;
+            letter-spacing: -.5px;
+            color: #A5E5F5;
+        }
+
+        h2 {
+            margin: 28px 0 8px;
+            font-size: 18px;
+        }
+
+        p {
+            margin: 8px 0;
+        }
+
+        .muted,
+        .unit {
+            color: #B9CADD;
+        }
+
+        /* Keep labels, inputs and units aligned */
+        .dimensions {
+            display: grid;
+            gap: 16px;
+            margin-top: 24px;
+        }
+
+        .dimension {
+            display: grid;
+            grid-template-columns: 1fr 110px auto;
+            gap: 12px;
+            align-items: center;
+        }
+
+        input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #70829C;
+            border-radius: 8px;
+            background: #222A3D;
+            color: #EEF7FF;
+            font: inherit;
+        }
+
+        :focus-visible {
+            outline: 3px solid #A5E5F5;
+            outline-offset: 3px;
+        }
+
+        /* Make the calculated size the main highlight */
+        .preview {
+            margin: 28px 0 24px;
+            padding: 20px;
+            border: 1px solid #52617A;
+            border-radius: 12px;
+            background: #222A3D;
+        }
+
+        .size {
+            color: #A5E5F5;
+            font-size: 26px;
+            font-weight: 650;
+        }
+
+        /* Style the main action */
+        button {
+            width: 100%;
+            padding: 14px;
+            border: 0;
+            border-radius: 10px;
+            background: #A5E5F5;
+            color: #172536;
+            font: 600 16px system-ui, sans-serif;
+            cursor: pointer;
+        }
+
+        button:disabled {
+            opacity: .55;
+            cursor: not-allowed;
+        }
+    </style>
 </head>
 
 <body>
-    <button id="run">Run test</button>
-    <pre id="result"></pre>
+    <div class="layout">
+        <main>
+            <!-- Introduce the generator -->
+            <header>
+                <h1>Brittle ice spleef arena</h1>
+            </header>
 
-    <script src="https://cdn.jsdelivr.net/pyodide/v314.0.7/full/pyodide.js"></script>
+            <!-- Collect the requested outer dimensions -->
+            <section aria-labelledby="desired-size">
+                <h2 id="desired-size">Desired size</h2>
+                <p class="muted">
+                    The actual size depends on multiples of the tiles, so exact sizes are not always possible. We'll use
+                    the closest available size.
+                </p>
+
+                <div class="dimensions">
+                    <div class="dimension">
+                        <label for="width">Width</label>
+                        <input id="width" type="number" min="11" step="7" value="25">
+                        <span class="unit">blocks</span>
+                    </div>
+                    <div class="dimension">
+                        <label for="length">Length (cheap side)</label>
+                        <input id="length" type="number" min="22" step="10" value="42">
+                        <span class="unit">blocks</span>
+                    </div>
+                    <div class="dimension">
+                        <label for="height">Height</label>
+                        <input id="height" type="number" min="11" step="7" value="11">
+                        <span class="unit">blocks</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Show the closest dimensions without changing the requested values -->
+            <section class="preview" aria-label="Closest available size" aria-live="polite">
+                <p>Closest available size:</p>
+                <p class="size">— × — × — blocks</p>
+                <p id="size-details" class="muted"></p>
+            </section>
+
+            <button disabled>Download schematic</button>
+
+        </main>
+
+        <!-- Show the temporary video beside the generator -->
+        <aside aria-label="Video">
+            <iframe src="https://www.youtube-nocookie.com/embed/6VYRHbqqts4?autoplay=0"
+                title="Video creating this contraption" allow="encrypted-media; fullscreen; picture-in-picture"
+                referrerpolicy="strict-origin-when-cross-origin" allowfullscreen>
+            </iframe>
+        </aside>
+    </div>
+
     <script type="module">
-        // Find the button and output area
-        const button = document.querySelector('#run');
-        const result = document.querySelector('#result');
+        // Read the sizing rules directly from the inputs
+        const inputs = ['width', 'length', 'height'].map(id => document.getElementById(id));
+        const preview = document.querySelector('.size');
+        const details = document.getElementById('size-details');
 
-        button.onclick = async () => {
-            button.disabled = true;
-            result.textContent = 'Loading Python and Litemapy…';
+        // Round to whole tiles, keeping at least the minimum size
+        function closestSize(requested, minimum, step) {
+            const tiles = Math.max(0, Math.round((requested - minimum) / step));
+            return minimum + tiles * step;
+        }
 
-            try {
-                // Start Python and load its package installer
-                const python = await loadPyodide();
-                await python.loadPackage(['numpy', 'micropip']);
-
-                // Install Litemapy inside the browser
-                await python.runPythonAsync(`
-import micropip
-await micropip.install("litemapy==0.11.0b0")
-      `);
-
-                // Load our Python functions from the separate file
-                const response = await fetch('./generator.py');
-                if (!response.ok) throw new Error('Could not load generator.py');
-                await python.runPythonAsync(await response.text());
-
-                // Create, save and reopen the sample schematic
-                result.textContent = python.runPython('round_trip()');
-            } catch (error) {
-                // Show failures where we can read them
-                result.textContent = String(error);
+        function updatePreview() {
+            // Leave placeholders while a field is empty or invalid
+            if (inputs.some(input => !Number.isFinite(input.valueAsNumber))) {
+                preview.textContent = '— × — × — blocks';
+                details.textContent = '';
+                return;
             }
-        };
+
+            // Calculate each axis using its own minimum and tile increment
+            const sizes = inputs.map(input => closestSize(
+                input.valueAsNumber, Number(input.min), Number(input.step)
+            ));
+            preview.textContent = `${sizes.join(' × ')} blocks`;
+            details.textContent = `Width ${sizes[0]} · Length ${sizes[1]} · Height ${sizes[2]}`;
+        }
+
+        // Refresh on typing and arrow clicks, and show the starting size on load
+        inputs.forEach(input => input.addEventListener('input', updatePreview));
+        updatePreview();
     </script>
+
 </body>
 
 </html>

@@ -1,7 +1,7 @@
 from copy import deepcopy
 from pathlib import Path
 
-from litemapy import Region, Schematic
+from litemapy import BlockState, Region, Schematic
 
 """
 The schematic is formed by the following regions
@@ -13,7 +13,7 @@ The schematic is formed by the following regions
 | Width-start / length-start corner | ws_ls                                  |
 | Width-start / length-end corner   | ws_le1 + ws_le2                        |
 | Width-end / length-start corner   | we_ls1 + we_ls2                        |
-| Width-end / length-end corner     | we_le                                  |
+| Width-end / length-end corner     | we_le1 + we_le1                        |
 | Top                               | top_prefix, top_slice, top_suffix      |
 """
 
@@ -72,13 +72,19 @@ def gen_schem(width_tiles: int, height_layers: int, length_tiles: int):
             src["we_ls2"],
             y_layers=-layer,
         )
-        output[f"we_le_layer_{layer + 1}"] = copy_offset(
-            src["we_le"],
+        output[f"we_le1_layer_{layer + 1}"] = copy_offset(
+            src["we_le1"],
+            y_layers=-layer,
+            x_tiles=width_tiles - 2,
+        )
+        output[f"we_le2_layer_{layer + 1}"] = copy_offset(
+            src["we_le2"],
             y_layers=-layer,
             x_tiles=width_tiles - 2,
         )
 
         # width
+        offset = 0
         for dx in range(width_tiles):
             if dx % 2 == 0:
                 A_B = "A"
@@ -113,6 +119,11 @@ def gen_schem(width_tiles: int, height_layers: int, length_tiles: int):
                 x_tiles=width_tiles - 2,
                 y_layers=-layer,
             )
+            
+        # Adding pale moss to block water
+        pale_moss = BlockState("minecraft:pale_moss_block")
+        output[f"w_1_start_layer_{layer + 1}"][0, 2, 5] = pale_moss
+        output[f"w_{width_tiles}_start_layer_{layer + 1}"][6, 2, 5] = pale_moss
 
     output["arena_center"] = Region(
         3,
